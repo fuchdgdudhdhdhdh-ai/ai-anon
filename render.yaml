@@ -1,0 +1,41 @@
+services:
+  # Основной сервис: бот-помощник + аккаунт-персонаж + веб-сервер для health-check
+  - type: web
+    name: ai-persona-bot
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: API_ID
+        sync: false
+      - key: API_HASH
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OWNER_ID
+        sync: false
+      - key: SESSION_NAME
+        value: persona_session
+      - key: DATA_FILE
+        value: data/storage.json
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+
+  # Автобудилка: бесплатный веб-сервис на Render "засыпает" после ~15 минут
+  # без запросов. Этот cron job каждые 10 минут дёргает /health основного
+  # сервиса, чтобы он не засыпал и сессия/данные не сбрасывались.
+  - type: cron
+    name: ai-persona-keepalive
+    env: python
+    plan: free
+    schedule: "*/10 * * * *"
+    buildCommand: "echo no-build-needed"
+    # PING_URL нужно один раз вписать вручную в Render после первого деплоя
+    # основного сервиса — см. README.md, раздел "Деплой на Render".
+    startCommand: "curl -fsS \"$PING_URL/health\" || true"
+    envVars:
+      - key: PING_URL
+        sync: false
